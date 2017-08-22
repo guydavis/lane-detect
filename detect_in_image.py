@@ -86,8 +86,10 @@ def weighted_img(img, initial_img, α=0.8, β=1., λ=0.):
     return cv2.addWeighted(initial_img, α, img, β, λ)
 
 def process_image(dirpath, image_file):
+    if not os.path.exists('tmp'):
+        os.mkdir('tmp')
+
     # First load and show the sample image
-    os.mkdir('tmp')
     image = mpimg.imread("{0}/{1}".format(dirpath, image_file))
     im = plt.imshow(image)
     plt.savefig('tmp/1.png')
@@ -136,15 +138,20 @@ def process_image(dirpath, image_file):
     im = plt.imshow(colored_image, cmap='gray')
     plt.savefig('tmp/7.png')
 
+    # Save a few more copies of last frame to cause a pause at the end before looping
+    plt.savefig('tmp/8.png')
+    plt.savefig('tmp/9.png')
+
     # Now generate an animated gif of the image stages
     image_name = os.path.splitext(image_file)[0]
-    subprocess.call( ['convert', '-delay', '100', '-loop', '1', 'tmp/*.png', "output/{0}.gif".format(image_name) ] )
+    subprocess.call( ['convert', '-delay', '100', '-loop', '0', 'tmp/*.png', "output/{0}.gif".format(image_name) ] )
     shutil.rmtree('tmp')
 
-if __name__ == "__main__":
+if __name__ == "__main__":    
     f = []
     for (dirpath, dirnames, filenames) in os.walk('images'):
         f.extend(filenames)
         for image_file in filenames:
+            print("Processing image: {0}".format(image_file))
             process_image(dirpath, image_file)
         break
