@@ -1,7 +1,7 @@
 #
-# Attempting to replicate lane detection results described in this tutorial:
-# http://www.kdnuggets.com/2017/07/road-lane-line-detection-using-computer-vision-models.html
-# https://github.com/vijay120/KDNuggets/blob/master/2016-12-04-detecting-car-lane-lines-using-computer-vision.md
+# Attempting to replicate lane detection results described in this tutorial by Naoki Shibuya:
+# https://medium.com/towards-data-science/finding-lane-lines-on-the-road-30cf016a1165
+# For more see: https://github.com/naokishibuya/car-finding-lane-lines
 # 
 
 import matplotlib.pyplot as plt
@@ -14,88 +14,110 @@ import subprocess
 import os
 import shutil
 
-def grayscale(img):
-    return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+def convert_hls(image):
+    return cv2.cvtColor(image, cv2.COLOR_RGB2HLS)
 
-def gaussian_blur(img, kernel_size):
-    return cv2.GaussianBlur(img, (kernel_size, kernel_size), 0)
+def select_white_yellow(image):
+    converted = convert_hls(image)
+    lower = np.uint8([  0, 200,   0])
+    upper = np.uint8([255, 255, 255])
+    white_mask = cv2.inRange(converted, lower, upper)
+    lower = np.uint8([ 10,   0, 100])
+    upper = np.uint8([ 40, 255, 255])
+    yellow_mask = cv2.inRange(converted, lower, upper)
+    mask = cv2.bitwise_or(white_mask, yellow_mask)
+    return cv2.bitwise_and(image, image, mask = mask)
 
-def canny(img, low_threshold, high_threshold):
-    return cv2.Canny(img, low_threshold, high_threshold)
+def convert_gray_scale(image):
+    return cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
 
-def region_of_interest(img, vertices):
-    mask = np.zeros_like(img)   
-    if len(img.shape) > 2:
-        channel_count = img.shape[2]
-        ignore_mask_color = (255,) * channel_count
+def apply_smoothing(image, kernel_size=15):
+    return cv2.GaussianBlur(image, (kernel_size, kernel_size), 0)
+
+def detect_edges(image, low_threshold=50, high_threshold=150):
+    return cv2.Canny(image, low_threshold, high_threshold)
+
+def filter_region(image, vertices):
+    mask = np.zeros_like(image)
+    if len(mask.shape)==2:
+        cv2.fillPoly(mask, vertices, 255)
     else:
-        ignore_mask_color = 255
-    cv2.fillPoly(mask, vertices, ignore_mask_color)
-    masked_image = cv2.bitwise_and(img, mask)
-    return masked_image
+        cv2.fillPoly(mask, vertices, (255,)*mask.shape[2])
+    return cv2.bitwise_and(image, mask)
+    
+def select_region(image):
+    rows, cols = image.shape[:2]
+    bottom_left  = [cols*0.1, rows*0.95]
+    top_left     = [cols*0.4, rows*0.6]
+    bottom_right = [cols*0.9, rows*0.95]
+    top_right    = [cols*0.6, rows*0.6] 
+    vertices = np.array([[bottom_left, top_left, top_right, bottom_right]], dtype=np.int32)
+    return filter_region(image, vertices)
 
-def hough_lines(img, rho, theta, threshold, min_line_len, max_line_gap):
-    lines = cv2.HoughLinesP(img, rho, theta, threshold, np.array([]), 
-              minLineLength=min_line_len, maxLineGap=max_line_gap)
-    try:
-        line_img = np.zeros((*img.shape, 3), dtype=np.uint8)
-        draw_lines(line_img, lines)
-        return line_img
-    except Exception as e: 
-        print(e)
-        return None
+def hough_lines(image):
+    return cv2.HoughLinesP(image, rho=1, theta=np.pi/180, threshold=20, minLineLength=20, maxLineGap=300)
 
-def draw_lines(img, lines, color=[255, 0, 0], thickness=2):
-    imshape = img.shape
-    ymin_global = img.shape[0]
-    ymax_global = img.shape[0]
-    all_left_grad = []
-    all_left_y = []
-    all_left_x = []
-    all_right_grad = []
-    all_right_y = []
-    all_right_x = []
+def average_slope_intercept(lines):
+    left_lines    = [] 
+    left_weights  = [] 
+    right_lines   = [] 
+    right_weights = [] 
     for line in lines:
-        for x1,y1,x2,y2 in line:
-            gradient, intercept = np.polyfit((x1,x2), (y1,y2), 1)
-            ymin_global = min(min(y1, y2), ymin_global)
-            
-            if (gradient > 0):
-                all_left_grad += [gradient]
-                all_left_y += [y1, y2]
-                all_left_x += [x1, x2]
+        for x1, y1, x2, y2 in line:
+            if x2==x1:
+                continue 
+            slope = (y2-y1)/(x2-x1)
+            intercept = y1 - slope*x1
+            length = np.sqrt((y2-y1)**2+(x2-x1)**2)
+            if slope < 0: 
+                left_lines.append((slope, intercept))
+                left_weights.append((length))
             else:
-                all_right_grad += [gradient]
-                all_right_y += [y1, y2]
-                all_right_x += [x1, x2]
-    left_mean_grad = np.mean(all_left_grad)
-    left_y_mean = np.mean(all_left_y)
-    left_x_mean = np.mean(all_left_x)
-    left_intercept = left_y_mean - (left_mean_grad * left_x_mean)
-    right_mean_grad = np.mean(all_right_grad)
-    right_y_mean = np.mean(all_right_y)
-    right_x_mean = np.mean(all_right_x)
-    right_intercept = right_y_mean - (right_mean_grad * right_x_mean)
-    if ((len(all_left_grad) > 0) and (len(all_right_grad) > 0)):
-        upper_left_x = int((ymin_global - left_intercept) / left_mean_grad)
-        lower_left_x = int((ymax_global - left_intercept) / left_mean_grad)
-        upper_right_x = int((ymin_global - right_intercept) / right_mean_grad)
-        lower_right_x = int((ymax_global - right_intercept) / right_mean_grad)
-        cv2.line(img, (upper_left_x, ymin_global), 
-                      (lower_left_x, ymax_global), color, thickness)
-        cv2.line(img, (upper_right_x, ymin_global), 
-                      (lower_right_x, ymax_global), color, thickness)
+                right_lines.append((slope, intercept))
+                right_weights.append((length))
+    left_lane  = np.dot(left_weights,  left_lines) /np.sum(left_weights)  if len(left_weights) >0 else None
+    right_lane = np.dot(right_weights, right_lines)/np.sum(right_weights) if len(right_weights)>0 else None
+    return left_lane, right_lane 
 
-def weighted_img(img, initial_img, α=0.8, β=1., λ=0.):
-    return cv2.addWeighted(initial_img, α, img, β, λ)
+def make_line_points(y1, y2, line):
+    if line is None:
+        return None
+    slope, intercept = line
+    x1 = int((y1 - intercept)/slope)
+    x2 = int((y2 - intercept)/slope)
+    y1 = int(y1)
+    y2 = int(y2)
+    return ((x1, y1), (x2, y2))
+
+def lane_lines(image, lines):
+    left_lane, right_lane = average_slope_intercept(lines)
+    y1 = image.shape[0] 
+    y2 = y1*0.6         
+    left_line  = make_line_points(y1, y2, left_lane)
+    right_line = make_line_points(y1, y2, right_lane)
+    return left_line, right_line
+    
+def draw_lane_lines(image, lines, color=[255, 0, 0], thickness=20):
+    line_image = np.zeros_like(image)
+    for line in lines:
+        if line is not None:
+            cv2.line(line_image, *line,  color, thickness)
+    return cv2.addWeighted(image, 1.0, line_image, 0.95, 0.0)
+
+def mark_failed(image):
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    text = "DETECT FAILED!"
+    textsize = cv2.getTextSize(text, font, 2, 5)[0]
+    textX = int((image.shape[1] - textsize[0]) / 2)
+    textY = int((image.shape[0] + textsize[1]) / 2)
+    cv2.putText(image, text, (textX, textY), font, 2, (255, 0, 0), 5)
+    return image
 
 def process_image(dirpath, image_file):
     if not os.path.exists('tmp'):
         os.mkdir('tmp')
-    if not os.path.exists('output/passed'):
-        os.mkdir('output/passed')
-    if not os.path.exists('output/failed'):
-        os.mkdir('output/failed')
+    if not os.path.exists('output'):
+        os.makedirs('output')
     image_name = os.path.splitext(image_file)[0]
 
     # First load and show the sample image
@@ -103,65 +125,45 @@ def process_image(dirpath, image_file):
     im = plt.imshow(image)
     plt.savefig('tmp/1.png')
 
-    # Now convert the image to grayscale
-    grayscaled = grayscale(image)
-    im = plt.imshow(grayscaled, cmap='gray')
+    # Now select the white and yellow lines
+    white_yellow = select_white_yellow(image)
+    im = plt.imshow(white_yellow, cmap='gray')
     plt.savefig('tmp/2.png')
 
-    # Now apply a gaussian blur
-    kernelSize = 5
-    gaussianBlur = gaussian_blur(grayscaled, kernelSize)
-    im = plt.imshow(gaussianBlur, cmap='gray')
+    # Now convert to grayscale
+    gray_scale = convert_gray_scale(white_yellow)
+    im = plt.imshow(gray_scale, cmap='gray')
     plt.savefig('tmp/3.png')
 
-    # Now apply the Canny transformation to detect lane markers
-    minThreshold = 100
-    maxThreshold = 200
-    edgeDetectedImage = canny(gaussianBlur, minThreshold, maxThreshold)
-    im = plt.imshow(edgeDetectedImage, cmap='gray')
+    # Then apply a Gaussian blur
+    blurred_image = apply_smoothing(gray_scale)
+    im = plt.imshow(blurred_image, cmap='gray')
     plt.savefig('tmp/4.png')
 
-    # Identify a region of interest... how to do this generically?
-    lowerLeftPoint = [130, 540]
-    upperLeftPoint = [410, 350]
-    upperRightPoint = [570, 350]
-    lowerRightPoint = [915, 540]
-    pts = np.array([[lowerLeftPoint, upperLeftPoint, upperRightPoint, 
-    lowerRightPoint]], dtype=np.int32)
-    masked_image = region_of_interest(edgeDetectedImage, pts)
-    im = plt.imshow(masked_image, cmap='gray')
+    # Detect line edges 
+    edged_image = detect_edges(blurred_image)
+    im = plt.imshow(edged_image, cmap='gray')
     plt.savefig('tmp/5.png')
 
-    # Apply Hough Lines transformation
-    rho = 1
-    theta = np.pi/180
-    threshold = 30
-    min_line_len = 20 
-    max_line_gap = 20
-    houghed = hough_lines(masked_image, rho, theta, threshold, min_line_len, max_line_gap)
-    if (houghed is not None):  # Check if failed to Hough lines.
-        im = plt.imshow(houghed, cmap='gray')
-        plt.savefig('tmp/6.png')
-        # Finally overlay the detected lines on the original image
-        colored_image = weighted_img(houghed, image)
-        im = plt.imshow(colored_image, cmap='gray')
-        plt.savefig('tmp/7.png')
-        output_name = "output/passed/{0}.gif".format(image_name)
+    # Now ignore all but the area of interest
+    masked_image = select_region(edged_image)
+    im = plt.imshow(masked_image, cmap='gray')
+    plt.savefig('tmp/6.png')
+    
+     # Apply Houghed lines algorithm
+    houghed_lines = hough_lines(masked_image)
+    if houghed_lines is not None:
+        houghed_image = draw_lane_lines(image, lane_lines(image, houghed_lines))
+        im = plt.imshow(houghed_image, cmap='gray')
+        output_name = "output/{0}_passed.gif".format(image_name)
         print("Detected lanes in '{0}/{1}'. See result in '{2}'.".format(dirpath, image_file, output_name))
-    else: # Failed to Hough lines
-        font = cv2.FONT_HERSHEY_SIMPLEX
-        text = "DETECT FAILED!"
-        textsize = cv2.getTextSize(text, font, 2, 5)[0]
-        textX = int((image.shape[1] - textsize[0]) / 2)
-        textY = int((image.shape[0] + textsize[1]) / 2)
-        cv2.putText(image, text, (textX, textY), font, 2, (255, 0, 0), 5)
-        im = plt.imshow(image, cmap='gray')
-        plt.savefig('tmp/6.png')
-        plt.savefig('tmp/7.png')
-        output_name = "output/failed/{0}.gif".format(image_name)
+    else:
+        im = plt.imshow(mark_failed(image), cmap='gray')
+        output_name = "output/{0}_failed.gif".format(image_name)
         print("Failed detection in '{0}/{1}'. See result in '{2}'.".format(dirpath, image_file, output_name))
+    plt.savefig('tmp/7.png')
 
-    # Save a few more copies of last frame to cause a pause at the end before looping
+    # Repeat last image in the loop a couple of times.
     plt.savefig('tmp/8.png')
     plt.savefig('tmp/9.png')
 

@@ -21,7 +21,7 @@ def gaussian_blur(img, kernel_size):
     return cv2.GaussianBlur(img, (kernel_size, kernel_size), 0)
 
 def canny(img, low_threshold, high_threshold):
-    return cv2.Canny(img, low_threshold, high_threshold)
+    return cv2.Canny(img, low_threshold, hiHoughgh_threshold)
 
 def region_of_interest(img, vertices):
     mask = np.zeros_like(img)   
@@ -37,9 +37,13 @@ def region_of_interest(img, vertices):
 def hough_lines(img, rho, theta, threshold, min_line_len, max_line_gap):
     lines = cv2.HoughLinesP(img, rho, theta, threshold, np.array([]), 
               minLineLength=min_line_len, maxLineGap=max_line_gap)
-    line_img = np.zeros((*img.shape, 3), dtype=np.uint8)
-    draw_lines(line_img, lines)
-    return line_img
+    try:
+        line_img = np.zeros((*img.shape, 3), dtype=np.uint8)
+        draw_lines(line_img, lines)
+        return line_img
+    except Exception as e: 
+        print(e)
+        return None
 
 def draw_lines(img, lines, color=[255, 0, 0], thickness=2):
     imshape = img.shape
@@ -67,7 +71,7 @@ def draw_lines(img, lines, color=[255, 0, 0], thickness=2):
     left_mean_grad = np.mean(all_left_grad)
     left_y_mean = np.mean(all_left_y)
     left_x_mean = np.mean(all_left_x)
-    left_intercept = left_y_mean - (left_mean_grad * left_x_mean)
+    left_intercept = left_y_mean - (left_meHoughan_grad * left_x_mean)
     right_mean_grad = np.mean(all_right_grad)
     right_y_mean = np.mean(all_right_y)
     right_x_mean = np.mean(all_right_x)
@@ -88,6 +92,9 @@ def weighted_img(img, initial_img, α=0.8, β=1., λ=0.):
 def process_image(dirpath, image_file):
     if not os.path.exists('tmp'):
         os.mkdir('tmp')
+    if not os.path.exists('output'):
+        os.makedirs('output')
+    image_name = os.path.splitext(image_file)[0]
 
     # First load and show the sample image
     image = mpimg.imread("{0}/{1}".format(dirpath, image_file))
@@ -106,7 +113,7 @@ def process_image(dirpath, image_file):
     plt.savefig('tmp/3.png')
 
     # Now apply the Canny transformation to detect lane markers
-    minThreshold = 100
+    minThreshold = 100Hough
     maxThreshold = 200
     edgeDetectedImage = canny(gaussianBlur, minThreshold, maxThreshold)
     im = plt.imshow(edgeDetectedImage, cmap='gray')
@@ -122,7 +129,7 @@ def process_image(dirpath, image_file):
     masked_image = region_of_interest(edgeDetectedImage, pts)
     im = plt.imshow(masked_image, cmap='gray')
     plt.savefig('tmp/5.png')
-
+Hough
     # Apply Hough Lines transformation
     rho = 1
     theta = np.pi/180
@@ -130,28 +137,43 @@ def process_image(dirpath, image_file):
     min_line_len = 20 
     max_line_gap = 20
     houghed = hough_lines(masked_image, rho, theta, threshold, min_line_len, max_line_gap)
-    im = plt.imshow(houghed, cmap='gray')
-    plt.savefig('tmp/6.png')
-
-    # Finally overlay the detected lines on the original image
-    colored_image = weighted_img(houghed, image)
-    im = plt.imshow(colored_image, cmap='gray')
-    plt.savefig('tmp/7.png')
+    if (houghed is not None):  # Check if failed to Hough lines.
+        im = plt.imshow(houghed, cmap='gray')
+        plt.savefig('tmp/6.png')
+        # Finally overlay the detected lines on the original image
+        colored_image = weighted_img(houghed, image)
+        im = plt.imshow(colored_image, cmap='gray')
+        plt.savefig('tmp/7.png')
+        output_name = "output/{0}_passed.gif".format(image_name)
+        print("Detected lanes in '{0}/{1}'. See result in '{2}'.".format(dirpath, image_file, output_name))
+    else: # Failed to Hough lines
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        text = "DETECT FAILED!"
+        textsize = cv2.getTextSize(text, font, 2, 5)[0]
+        textX = int((image.shape[1] - textsize[0]) / 2)
+        textY = int((image.shape[0] + textsize[1]) / 2)
+        cv2.putText(image, text, (textX, textY), font, 2, (255, 0, 0), 5)
+        im = plt.imshow(image, cmap='gray')
+        plt.savefig('tmp/6.png')
+        plt.savefig('tmp/7.png')
+        output_name = "output/{0}_failed.gif".format(image_name)
+        print("Failed detection in '{0}/{1}'. See result in '{2}'.".format(dirpath, image_file, output_name))
 
     # Save a few more copies of last frame to cause a pause at the end before looping
     plt.savefig('tmp/8.png')
     plt.savefig('tmp/9.png')
 
     # Now generate an animated gif of the image stages
-    image_name = os.path.splitext(image_file)[0]
-    subprocess.call( ['convert', '-delay', '100', '-loop', '0', 'tmp/*.png', "output/{0}.gif".format(image_name) ] )
+    subprocess.call( ['convert', '-delay', '100', '-loop', '0', 'tmp/*.png', output_name] )
     shutil.rmtree('tmp')
 
-if __name__ == "__main__":    
-    f = []
-    for (dirpath, dirnames, filenames) in os.walk('images'):
-        f.extend(filenames)
-        for image_file in filenames:
-            print("Processing image: {0}".format(image_file))
-            process_image(dirpath, image_file)
-        break
+if __name__ == "__main__": 
+    if len(sys.argv) == 1:
+        print("Usage: python3 ./lane_detect.py images/*")
+    else:
+        for arg in sys.argv[1:]:
+            if not os.path.isfile(arg):
+                print("Not a file: {0}".format(arg))
+            else:
+                dirpath,filename = os.path.split(arg)
+                process_image(dirpath, filename)
