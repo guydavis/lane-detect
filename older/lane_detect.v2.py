@@ -4,8 +4,6 @@
 # For more see: https://github.com/naokishibuya/car-finding-lane-lines
 # 
 
-import matplotlib
-matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import numpy as np
@@ -15,9 +13,6 @@ import sys
 import subprocess
 import os
 import shutil
-import traceback
-from moviepy.editor import *
-from collections import deque
 
 def convert_hls(image):
     return cv2.cvtColor(image, cv2.COLOR_RGB2HLS)
@@ -52,9 +47,9 @@ def filter_region(image, vertices):
     
 def select_region(image):
     rows, cols = image.shape[:2]
-    bottom_left  = [cols*0.1, rows*0.90]
+    bottom_left  = [cols*0.1, rows*0.95]
     top_left     = [cols*0.4, rows*0.6]
-    bottom_right = [cols*0.9, rows*0.90]
+    bottom_right = [cols*0.9, rows*0.95]
     top_right    = [cols*0.6, rows*0.6] 
     vertices = np.array([[bottom_left, top_left, top_right, bottom_right]], dtype=np.int32)
     return filter_region(image, vertices)
@@ -176,56 +171,13 @@ def process_image(dirpath, image_file):
     subprocess.call( ['convert', '-delay', '100', '-loop', '0', 'tmp/*.png', output_name] )
     shutil.rmtree('tmp')
 
-QUEUE_LENGTH=50
-class LaneDetector:
-    def __init__(self):
-        self.left_lines  = deque(maxlen=QUEUE_LENGTH)
-        self.right_lines = deque(maxlen=QUEUE_LENGTH)
-
-    def mean_line(self, line, lines):
-        if line is not None:
-            lines.append(line)
-        if len(lines)>0:
-            line = np.mean(lines, axis=0, dtype=np.int32)
-            line = tuple(map(tuple, line))
-        return line
-
-    def process(self, image):
-        try:
-            white_yellow = select_white_yellow(image)
-            gray         = convert_gray_scale(white_yellow)
-            smooth_gray  = apply_smoothing(gray)
-            edges        = detect_edges(smooth_gray)
-            regions      = select_region(edges)
-            lines        = hough_lines(regions)
-            left_line, right_line = lane_lines(image, lines)
-            left_line  = self.mean_line(left_line,  self.left_lines)
-            right_line = self.mean_line(right_line, self.right_lines)
-            return draw_lane_lines(image, (left_line, right_line))
-        except:
-            #traceback.print_exc()
-            return image
-
-def process_video(dirpath, video_file):
-    video_outfile = os.path.splitext(video_file)[0] + '.mp4'
-    detector = LaneDetector()
-    clip = VideoFileClip(os.path.join(dirpath, video_file))
-    processed = clip.fl_image(detector.process)
-    print(os.path.join('output', video_file))
-    processed.write_videofile(os.path.join('output', video_outfile), audio=False)
-
 if __name__ == "__main__": 
     if len(sys.argv) == 1:
-        print("Usage: python3 ./lane_detect.py images/* videos/*")
+        print("Usage: python3 ./lane_detect.py images/*")
     else:
         for arg in sys.argv[1:]:
             if not os.path.isfile(arg):
                 print("Not a file: {0}".format(arg))
             else:
                 dirpath,filename = os.path.split(arg)
-                if (dirpath.endswith('images')):
-                    process_image(dirpath, filename)
-                elif (dirpath.endswith('videos')):
-                    process_video(dirpath, filename)
-                else:
-                    print("ERROR: Provide filenames in either images or videos folders.")
+                process_image(dirpath, filename)

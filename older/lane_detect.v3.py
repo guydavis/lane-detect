@@ -4,8 +4,6 @@
 # For more see: https://github.com/naokishibuya/car-finding-lane-lines
 # 
 
-import matplotlib
-matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
 import numpy as np
