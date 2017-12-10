@@ -16,7 +16,7 @@ RUN apt-get install -y build-essential cmake pkg-config \
                 libxvidcore-dev libx264-dev imagemagick \
                 libgtk-3-dev libatlas-base-dev gfortran 
 RUN apt-get install -y python2.7-dev python3.5-dev python-opencv python3-tk \
-                python-pip python3-pip 
+                python-pip python3-pip python3-magic
 RUN apt-get autoremove -y
 RUN pip install --upgrade pip && pip3 install --upgrade pip
 

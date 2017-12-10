@@ -9,28 +9,21 @@ kind: Job
 metadata:
   name: lane-detect
 spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      name: lane-detect
+  parallelism: 2
   template:
     metadata:
-      labels:
-        name: lane-detect
+      name: lane-detect
     spec:
       containers:
-      - image: guydavis/lane-detect
+      - name: lane-detect
+        image: guydavis/lane-detect
         workingDir: /mnt
-        command:
-          - /usr/bin/python3
-          - /opt/lane_detect.py
-        args:
-          - images/*
-        imagePullPolicy: IfNotPresent
-        name: lane-detect
+        command: [ "/usr/bin/python3", "-u", "/opt/lane_detect.py" ]
+        args: [ "images/*" ]
+        imagePullPolicy: Always
         volumeMounts:
-          - name: my-pvc-nfs
-            mountPath: "/mnt"
+        - name: my-pvc-nfs
+          mountPath: "/mnt"
       restartPolicy: Never
       volumes:
       - name: my-pvc-nfs

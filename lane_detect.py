@@ -17,6 +17,7 @@ import os
 import shutil
 import traceback
 import random
+import magic
 from moviepy.editor import *
 from collections import deque
 
@@ -221,19 +222,31 @@ def process_video(dirpath, video_file):
     processed.write_videofile(video_outpath, codec='libx264', audio=False, verbose=False, progress_bar=False)
     print("Detected lanes in '{0}/{1}'. See result in '{2}'.".format(dirpath, video_file, video_outpath))
 
+def collect_files(files, path):
+    if (os.path.isdir(path)):
+        for dirpath,_,filenames in os.walk(path):
+            for f in filenames:
+                files.append(os.path.abspath(os.path.join(dirpath, f)))
+    elif os.path.isfile(path):
+        files.append(path)
+    else:
+        print("Skipping path that is neither directory or file: {0}".format(path))
+
 if __name__ == "__main__":
     if len(sys.argv) == 1:
-        print("Usage: python3 lane_detect.py images/* videos/*")
+        print("Usage: python3 lane_detect.py [IMAGE|VIDEO|DIRECTORY]..")
+        print("Processed files are saved into 'output' folder within working directory.")
         sys.exit(1)
-    files = sys.argv[1:]
+    files = []
+    for arg in sys.argv[1:]:
+        collect_files(files, arg)
     random.shuffle(files)
     for f in files:
         dirpath,filename = os.path.split(f)
-        if not os.path.isfile(f):
-            print("Not a file: {0}".format(f))
-        elif (dirpath.endswith('images')):
+        mime_type = magic.from_file(f, mime=True)
+        if mime_type.startswith("image"):
             process_image(dirpath, filename)
-        elif (dirpath.endswith('videos')):
+        elif mime_type.startswith("video"):
             process_video(dirpath, filename)
         else:
-            print("ERROR: Provide filenames in either images or videos folders.")
+            print("SKIP: Unknown mime type of {0} for file: {1}".format(mime_type, f))

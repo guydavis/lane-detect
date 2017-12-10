@@ -1,3 +1,4 @@
+python-magic
 opencv-python
 matplotlib
 moviepy
