@@ -3,6 +3,8 @@
 # https://medium.com/towards-data-science/finding-lane-lines-on-the-road-30cf016a1165
 # For more see: https://github.com/naokishibuya/car-finding-lane-lines
 # 
+# This third version adds video processing.
+#
 
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg

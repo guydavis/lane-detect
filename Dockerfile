@@ -1,8 +1,8 @@
 #
 # Load required OpenCV tools into a stock Ubuntu container, then add lane detection code.
 #   docker build -t guydavis/lane-detect .
-#   docker run -v $PWD/images:/opt/images -v $PWD/output:/opt/output lane-detect images/mysnapshot.jpg
-#   docker run -v $PWD/videos:/opt/videos -v $PWD/output:/opt/output lane-detect videos/mydashcam.mov
+#   docker run -v $PWD/images:/opt/images -v $PWD/output:/opt/output guydavis/lane-detect images/mysnapshot.jpg
+#   docker run -v $PWD/videos:/opt/videos -v $PWD/output:/opt/output guydavis/lane-detect videos/mydashcam.mov
 
 FROM ubuntu:16.04
 

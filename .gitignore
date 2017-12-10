@@ -104,3 +104,6 @@ ENV/
 
 videos/*
 .vscode/*
+
+# Temporary files 
+k8s/gcp/03-pv-and-pvc-nfs-replaced.yml

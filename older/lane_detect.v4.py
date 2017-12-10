@@ -3,6 +3,8 @@
 # https://medium.com/towards-data-science/finding-lane-lines-on-the-road-30cf016a1165
 # For more see: https://github.com/naokishibuya/car-finding-lane-lines
 # 
+# Fourth version is Dockerized for local execution
+#
 
 import matplotlib
 matplotlib.use('Agg')
@@ -16,7 +18,6 @@ import subprocess
 import os
 import shutil
 import traceback
-import random
 from moviepy.editor import *
 from collections import deque
 
@@ -139,7 +140,7 @@ def process_image(dirpath, image_file):
     # Now convert to grayscale
     gray_scale = convert_gray_scale(white_yellow)
     im = plt.imshow(gray_scale, cmap='gray')
-    plt.savefig('tmp/3.png')
+    plt.savefig('tmp/3.png')while true; do date > /mnt/index.html; hostname >> /mnt/index.html; sleep $(($RANDOM % 5 + 5)); done
 
     # Then apply a Gaussian blur
     blurred_image = apply_smoothing(gray_scale)
@@ -209,31 +210,24 @@ class LaneDetector:
 
 def process_video(dirpath, video_file):
     video_outfile = os.path.splitext(video_file)[0] + '.mp4'
-    video_outpath = os.path.join('output', video_file)
-    if os.path.isfile(video_outpath):
-        print("Skipping already processed file: {0}".format(video_outpath))
-        return
     detector = LaneDetector()
     clip = VideoFileClip(os.path.join(dirpath, video_file))
     processed = clip.fl_image(detector.process)
-    print(video_outpath)
-    processed.write_videofile(video_outpath, audio=False)
+    print(os.path.join('output', video_file))
+    processed.write_videofile(os.path.join('output', video_outfile), audio=False)
 
-if __name__ == "__main__":
+if __name__ == "__main__": 
     if len(sys.argv) == 1:
-        print("Usage: python3 lane_detect.py images/* videos/*")
-        sys.exit(1)
-    files = sys.argv[1:]
-    random.shuffle(files)
-    for f in files:
-        dirpath,filename = os.path.split(f)
-        if not os.path.isfile(f):
-            print("Not a file: {0}".format(f))
-        elif (dirpath.endswith('images')):
-            #print("Process image {0}".format(f))
-            process_image(dirpath, filename)
-        elif (dirpath.endswith('videos')):
-            #print("Process video {0}".format(f))
-            process_video(dirpath, filename)
-        else:
-            print("ERROR: Provide filenames in either images or videos folders.")
+        print("Usage: python3 ./lane_detect.py images/* videos/*")
+    else:
+        for arg in sys.argv[1:]:
+            if not os.path.isfile(arg):
+                print("Not a file: {0}".format(arg))
+            else:
+                dirpath,filename = os.path.split(arg)
+                if (dirpath.endswith('images')):
+                    process_image(dirpath, filename)
+                elif (dirpath.endswith('videos')):
+                    process_video(dirpath, filename)
+                else:
+                    print("ERROR: Provide filenames in either images or videos folders.")

@@ -1,0 +1,36 @@
+# 
+# Mounts the previously uploaded videos from the NFS server and processes input video
+#   - outputs to the /mnt/output/ folder.
+#
+
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: lane-detect
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: lane-detect
+  template:
+    metadata:
+      labels:
+        name: lane-detect
+    spec:
+      containers:
+      - image: guydavis/lane-detect
+        workingDir: /mnt
+        command:
+          - /usr/bin/python3
+          - /opt/lane_detect.py
+        args:
+          - videos/mydashcam.mov
+        imagePullPolicy: IfNotPresent
+        name: lane-detect
+        volumeMounts:
+          - name: my-pvc-nfs
+            mountPath: "/mnt"
+      volumes:
+      - name: my-pvc-nfs
+        persistentVolumeClaim:
+          claimName: nfs
