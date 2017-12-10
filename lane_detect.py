@@ -121,15 +121,13 @@ def mark_failed(image):
     return image
 
 def process_image(dirpath, image_file):
-    if not os.path.exists('output'):
-        os.makedirs('output')
+    os.makedirs('output', exist_ok=True)
     image_name = os.path.splitext(image_file)[0]
     output_name = "output/{0}.gif".format(image_name)
     if os.path.isfile(output_name):
         print("Skipping already processed file: {0}".format(output_name))
         return
-    if not os.path.exists('/tmp/{0}/'.format(output_name)):
-        os.makedirs('/tmp/{0}/'.format(output_name))
+    os.makedirs('/tmp/{0}/'.format(output_name), exist_ok=True)
 
     # First load and show the sample image
     image = mpimg.imread("{0}/{1}".format(dirpath, image_file))

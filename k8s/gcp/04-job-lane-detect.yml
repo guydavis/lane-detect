@@ -19,7 +19,7 @@ spec:
         image: guydavis/lane-detect
         workingDir: /mnt
         command: [ "/usr/bin/python3", "-u", "/opt/lane_detect.py" ]
-        args: [ "images/*" ]
+        args: [ "images/" ]
         imagePullPolicy: Always
         volumeMounts:
         - name: my-pvc-nfs
