@@ -120,62 +120,64 @@ def mark_failed(image):
     return image
 
 def process_image(dirpath, image_file):
-    if not os.path.exists('tmp'):
-        os.mkdir('tmp')
     if not os.path.exists('output'):
         os.makedirs('output')
     image_name = os.path.splitext(image_file)[0]
+    output_name = "output/{0}.gif".format(image_name)
+    if os.path.isfile(output_name):
+        print("Skipping already processed file: {0}".format(output_name))
+        return
+    if not os.path.exists('/tmp/{0}/'.format(output_name)):
+        os.makedirs('/tmp/{0}/'.format(output_name))
 
     # First load and show the sample image
     image = mpimg.imread("{0}/{1}".format(dirpath, image_file))
     im = plt.imshow(image)
-    plt.savefig('tmp/1.png')
+    plt.savefig('/tmp/{0}/1.png'.format(output_name))
 
     # Now select the white and yellow lines
     white_yellow = select_white_yellow(image)
     im = plt.imshow(white_yellow, cmap='gray')
-    plt.savefig('tmp/2.png')
+    plt.savefig('/tmp/{0}/2.png'.format(output_name))
 
     # Now convert to grayscale
     gray_scale = convert_gray_scale(white_yellow)
     im = plt.imshow(gray_scale, cmap='gray')
-    plt.savefig('tmp/3.png')
+    plt.savefig('/tmp/{0}/3.png'.format(output_name))
 
     # Then apply a Gaussian blur
     blurred_image = apply_smoothing(gray_scale)
     im = plt.imshow(blurred_image, cmap='gray')
-    plt.savefig('tmp/4.png')
+    plt.savefig('/tmp/{0}/4.png'.format(output_name))
 
     # Detect line edges 
     edged_image = detect_edges(blurred_image)
     im = plt.imshow(edged_image, cmap='gray')
-    plt.savefig('tmp/5.png')
+    plt.savefig('/tmp/{0}/5.png'.format(output_name))
 
     # Now ignore all but the area of interest
     masked_image = select_region(edged_image)
     im = plt.imshow(masked_image, cmap='gray')
-    plt.savefig('tmp/6.png')
+    plt.savefig('/tmp/{0}/6.png'.format(output_name))
     
      # Apply Houghed lines algorithm
     houghed_lines = hough_lines(masked_image)
     if houghed_lines is not None:
         houghed_image = draw_lane_lines(image, lane_lines(image, houghed_lines))
         im = plt.imshow(houghed_image, cmap='gray')
-        output_name = "output/{0}_passed.gif".format(image_name)
         print("Detected lanes in '{0}/{1}'. See result in '{2}'.".format(dirpath, image_file, output_name))
     else:
         im = plt.imshow(mark_failed(image), cmap='gray')
-        output_name = "output/{0}_failed.gif".format(image_name)
         print("Failed detection in '{0}/{1}'. See result in '{2}'.".format(dirpath, image_file, output_name))
-    plt.savefig('tmp/7.png')
+    plt.savefig('/tmp/{0}/7.png'.format(output_name))
 
     # Repeat last image in the loop a couple of times.
-    plt.savefig('tmp/8.png')
-    plt.savefig('tmp/9.png')
+    plt.savefig('/tmp/{0}/8.png'.format(output_name))
+    plt.savefig('/tmp/{0}/9.png'.format(output_name))
 
     # Now generate an animated gif of the image stages
-    subprocess.call( ['convert', '-delay', '100', '-loop', '0', 'tmp/*.png', output_name] )
-    shutil.rmtree('tmp')
+    subprocess.call( ['convert', '-delay', '100', '-loop', '0', '/tmp/{0}/*.png'.format(output_name), output_name] )
+    shutil.rmtree('/tmp/{0}'.format(output_name))
 
 QUEUE_LENGTH=50
 class LaneDetector:
@@ -216,8 +218,8 @@ def process_video(dirpath, video_file):
     detector = LaneDetector()
     clip = VideoFileClip(os.path.join(dirpath, video_file))
     processed = clip.fl_image(detector.process)
-    print(video_outpath)
-    processed.write_videofile(video_outpath, audio=False)
+    processed.write_videofile(video_outpath, codec='libx264', audio=False, verbose=False, progress_bar=False)
+    print("Detected lanes in '{0}/{1}'. See result in '{2}'.".format(dirpath, video_file, video_outpath))
 
 if __name__ == "__main__":
     if len(sys.argv) == 1:
@@ -230,10 +232,8 @@ if __name__ == "__main__":
         if not os.path.isfile(f):
             print("Not a file: {0}".format(f))
         elif (dirpath.endswith('images')):
-            #print("Process image {0}".format(f))
             process_image(dirpath, filename)
         elif (dirpath.endswith('videos')):
-            #print("Process video {0}".format(f))
             process_video(dirpath, filename)
         else:
             print("ERROR: Provide filenames in either images or videos folders.")

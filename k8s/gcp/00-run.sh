@@ -21,5 +21,9 @@ kubectl create -f 03-pv-and-pvc-nfs-replaced.yml
 nfs_pod=$(kubectl get pods | grep nfs-server | cut -d ' ' -f 1)
 kubectl cp ../../videos $nfs_pod:/exports/videos
 
-# create instances
+# create instances to process videos
 kubectl create -f 04-dep-lane-detect.yml
+
+# Check on the state of one
+ld_pod=$(kubectl get pods | grep lane-detect | cut -d ' ' -f 1)
+kubectl exec $ld_pod  -- du -hsc /mnt/output

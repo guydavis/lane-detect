@@ -27,5 +27,5 @@ RUN pip3 install -r requirements.txt
 RUN python3 -c "import imageio; imageio.plugins.ffmpeg.download()"
 
 COPY lane_detect.py .
-ENTRYPOINT ["/usr/bin/python3", "lane_detect.py"]
+ENTRYPOINT ["/usr/bin/python3", "-u", "lane_detect.py"]
 CMD ["images/*", "videos/*"]

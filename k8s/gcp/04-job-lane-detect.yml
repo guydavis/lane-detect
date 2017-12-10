@@ -1,10 +1,11 @@
 # 
 # Mounts the previously uploaded videos from the NFS server and processes input video
-#   - outputs to the /mnt/output/ folder.
+#   - outputs to the /mnt/output/ folder, until all output files exist.
+#   - k8s Job which runs to completion.  Random file process order as multiple workers.
 #
 
-apiVersion: extensions/v1beta1
-kind: Deployment
+apiVersion: batch/v1
+kind: Job
 metadata:
   name: lane-detect
 spec:
@@ -24,12 +25,13 @@ spec:
           - /usr/bin/python3
           - /opt/lane_detect.py
         args:
-          - videos/mydashcam.mov
+          - images/*
         imagePullPolicy: IfNotPresent
         name: lane-detect
         volumeMounts:
           - name: my-pvc-nfs
             mountPath: "/mnt"
+      restartPolicy: Never
       volumes:
       - name: my-pvc-nfs
         persistentVolumeClaim:
