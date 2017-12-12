@@ -9,7 +9,7 @@ kind: Job
 metadata:
   name: lane-detect
 spec:
-  parallelism: 2
+  parallelism: 3
   template:
     metadata:
       name: lane-detect
@@ -19,7 +19,7 @@ spec:
         image: guydavis/lane-detect
         workingDir: /mnt
         command: [ "/usr/bin/python3", "-u", "/opt/lane_detect.py" ]
-        args: [ "images/" ]
+        args: [ "videos/" ]
         imagePullPolicy: Always
         volumeMounts:
         - name: my-pvc-nfs
