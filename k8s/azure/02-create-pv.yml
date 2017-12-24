@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: myazurevolume
+spec:
+  capacity:
+    storage: 200Gi
+  accessModes:
+  - ReadWriteMany
+  azureFile:
+    secretName: azure-secret
+    shareName: myazurefiles
+    readOnly: false
+  claimRef:
+    namespace: default
+    name: myazureclaim

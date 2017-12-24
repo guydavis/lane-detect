@@ -1,0 +1,31 @@
+# 
+# Mounts the previously uploaded videos from the NFS server and processes input video
+#   - outputs to the /mnt/output/ folder, until all output files exist.
+#   - k8s Job which runs to completion.  Random file process order as multiple workers.
+#
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: lane-detect
+spec:
+  parallelism: 3
+  template:
+    metadata:
+      name: lane-detect
+    spec:
+      containers:
+      - name: lane-detect
+        image: guydavis/lane-detect
+        workingDir: /mnt
+        command: [ "/usr/bin/python3", "-u", "/opt/lane_detect.py" ]
+        args: [ "videos/" ]
+        imagePullPolicy: Always
+        volumeMounts:
+        - name: myazureshare
+          mountPath: /mnt
+      restartPolicy: Never
+      volumes:
+      - name: myazureshare
+        persistentVolumeClaim:
+          claimName: myazureclaim
